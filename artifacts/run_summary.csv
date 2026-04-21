@@ -1,0 +1,2 @@
+run_id,scraped_at,total_books,total_categories,avg_price_gbp,avg_price_rub,exchange_rate_gbp_rub,in_stock_books
+20260330T081729Z,2026-03-30 08:17:29+00:00,1000,50,35.07,3788.0,108.0116,1000
