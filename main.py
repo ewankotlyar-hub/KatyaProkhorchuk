@@ -10,11 +10,7 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from books_monitor.analysis import build_artifacts
 from books_monitor.config import SQLITE_PATH
-from books_monitor.scraper import scrape_catalog
-from books_monitor.storage import save_scrape_result
-
 
 def ensure_prefect_dependencies() -> str | None:
     required_modules = [
@@ -22,6 +18,18 @@ def ensure_prefect_dependencies() -> str | None:
         "pydantic",
         "anyio",
         "sqlalchemy",
+    ]
+    for module_name in required_modules:
+        if importlib.util.find_spec(module_name) is None:
+            return module_name
+    return None
+
+
+def ensure_api_dependencies() -> str | None:
+    required_modules = [
+        "fastapi",
+        "uvicorn",
+        "pydantic",
     ]
     for module_name in required_modules:
         if importlib.util.find_spec(module_name) is None:
@@ -64,10 +72,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run the flow every N hours",
     )
 
+    api_parser = subparsers.add_parser("api", help="Run the FastAPI web interface")
+    api_parser.add_argument("--host", default="127.0.0.1", help="Host for the API server")
+    api_parser.add_argument("--port", type=int, default=8000, help="Port for the API server")
+    api_parser.add_argument("--db-path", default=None, help="Optional custom SQLite database path")
+
     return parser
 
 
 def run_scrape(args: argparse.Namespace) -> int:
+    from books_monitor.analysis import build_artifacts
+    from books_monitor.scraper import scrape_catalog
+    from books_monitor.storage import save_scrape_result
+
     result = scrape_catalog(limit_pages=args.limit_pages, max_books=args.max_books)
     save_scrape_result(result)
     print(f"Run ID: {result.run.run_id}")
@@ -84,6 +101,8 @@ def run_scrape(args: argparse.Namespace) -> int:
 
 
 def run_analysis(args: argparse.Namespace) -> int:
+    from books_monitor.analysis import build_artifacts
+
     db_path = Path(args.db_path) if args.db_path else SQLITE_PATH
     artifacts = build_artifacts(db_path=db_path)
     print("Artifacts updated:")
@@ -137,6 +156,31 @@ def run_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_api(args: argparse.Namespace) -> int:
+    missing_module = ensure_api_dependencies()
+    if missing_module is not None:
+        print("FastAPI is not available in the current environment.")
+        print("Install dependencies from requirements.txt and try again.")
+        print(f"Missing module: {missing_module}")
+        return 1
+
+    db_path = Path(args.db_path) if args.db_path else SQLITE_PATH
+
+    try:
+        import uvicorn
+
+        from books_monitor.api import create_app
+    except ImportError as exc:
+        print("FastAPI is not available in the current environment.")
+        print("Install dependencies from requirements.txt and try again.")
+        print(f"Original import error: {exc}")
+        return 1
+
+    app = create_app(db_path=db_path)
+    uvicorn.run(app, host=args.host, port=args.port)
+    return 0
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
@@ -149,6 +193,8 @@ def main() -> int:
         return run_pipeline(args)
     if args.command == "serve":
         return run_serve(args)
+    if args.command == "api":
+        return run_api(args)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

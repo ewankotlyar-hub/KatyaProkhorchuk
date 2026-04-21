@@ -1,6 +1,6 @@
 # Books to Scrape Monitor
 
-Проект для непрерывного скрапинга `books.toscrape.com` с накоплением данных в SQLite/CSV и последующим анализом запусков.
+Проект для непрерывного скрапинга `books.toscrape.com` с накоплением данных в SQLite/CSV, последующим анализом запусков и web-интерфейсом на `FastAPI` для выборки данных из базы.
 
 ## Идея проекта
 
@@ -49,9 +49,14 @@
 └── src/
     └── books_monitor/
         ├── analysis.py
+        ├── api/
+        │   ├── app.py
+        │   ├── schemas.py
+        │   └── __init__.py
         ├── config.py
         ├── flow.py
         ├── models.py
+        ├── query_service.py
         ├── scraper.py
         └── storage.py
 ```
@@ -103,6 +108,18 @@ python3 main.py serve --interval-hours 6
 
 После этого flow будет запускаться по cron-расписанию `0 */6 * * *`.
 
+### 5. Запустить web API
+
+```bash
+python3 main.py api --host 127.0.0.1 --port 8000
+```
+
+После запуска будут доступны:
+
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- ReDoc: `http://127.0.0.1:8000/redoc`
+- OpenAPI JSON: `http://127.0.0.1:8000/openapi.json`
+
 ## Полезные параметры
 
 Для тестового прогона можно ограничить объем:
@@ -125,6 +142,79 @@ python3 main.py scrape --limit-pages 2 --max-books 20 --skip-analysis
 
 Итоговый анализ в `artifacts/` строится по полным прогонам каталога, чтобы тестовые укороченные запуски не искажали графики и сводки.
 
+## Web API
+
+API отдает только небольшие срезы данных. Для всех списковых эндпоинтов включены:
+
+- пагинация через `limit` и `offset`;
+- ограничение `limit <= 50`;
+- фильтрация;
+- сортировка;
+- валидация входных параметров через FastAPI/Pydantic.
+
+### Доступные эндпоинты
+
+#### `GET /api/v1/health`
+
+Краткая информация о состоянии базы:
+
+- путь к SQLite;
+- количество запусков;
+- количество сохраненных снимков;
+- идентификатор последнего запуска.
+
+#### `GET /api/v1/runs`
+
+Список запусков скрапера с пагинацией и сортировкой.
+
+Пример:
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/runs?limit=5&sort_by=scraped_at&sort_order=desc"
+```
+
+#### `GET /api/v1/books`
+
+Основной эндпоинт выборки книг из последнего или указанного запуска.
+
+Поддерживаемые параметры:
+
+- `run_id` - выбрать конкретный запуск;
+- `category` - фильтр по категории;
+- `min_rating` - минимальный рейтинг;
+- `max_price_rub` - верхняя граница цены в рублях;
+- `in_stock` - только книги в наличии / не в наличии;
+- `title_query` - поиск по фрагменту названия;
+- `sort_by` - `scraped_at`, `title`, `category`, `rating`, `price_gbp`, `price_rub`;
+- `sort_order` - `asc` или `desc`;
+- `limit`, `offset` - пагинация.
+
+Пример:
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/books?category=Poetry&min_rating=3&in_stock=true&sort_by=price_rub&sort_order=asc&limit=10"
+```
+
+#### `GET /api/v1/books/{upc}/history`
+
+История одной книги по `UPC` между разными запусками.
+
+Пример:
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/books/a897fe39b1053632/history?limit=10"
+```
+
+#### `GET /api/v1/categories`
+
+Агрегированная сводка по категориям для выбранного запуска.
+
+Пример:
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/categories?sort_by=avg_price_rub&sort_order=desc&limit=10"
+```
+
 ## Где смотреть результаты
 
 Сырые данные:
@@ -139,3 +229,29 @@ python3 main.py scrape --limit-pages 2 --max-books 20 --skip-analysis
 - `artifacts/analysis_summary.json` - краткая итоговая сводка;
 - `artifacts/avg_price_rub_by_run.png` - график средней цены в рублях по запускам;
 - `artifacts/category_avg_price_latest.png` - график средней цены по категориям.
+
+Артефакты API:
+
+- `artifacts/api_examples/openapi.json` - сохраненная OpenAPI-схема;
+- `artifacts/api_examples/health_response.json` - пример ответа healthcheck;
+- `artifacts/api_examples/runs_response.json` - пример списка запусков;
+- `artifacts/api_examples/books_filtered_response.json` - пример фильтрованной выборки книг;
+- `artifacts/api_examples/categories_response.json` - пример агрегатов по категориям;
+- `artifacts/api_examples/book_history_response.json` - пример истории книги по `UPC`.
+
+## Тесты
+
+Запуск:
+
+```bash
+python3 -m pytest
+```
+
+Покрыты базовые сценарии API:
+
+- healthcheck;
+- выборка книг по последнему запуску;
+- фильтры и сортировка;
+- агрегаты по категориям;
+- история книги по `UPC`;
+- ошибка валидации при слишком большом `limit`.
