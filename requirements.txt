@@ -1,0 +1,9 @@
+beautifulsoup4>=4.12
+fastapi>=0.115
+httpx>=0.28
+matplotlib>=3.8
+pandas>=2.2
+prefect>=2.19
+pytest>=8.3
+requests>=2.32
+uvicorn>=0.30
