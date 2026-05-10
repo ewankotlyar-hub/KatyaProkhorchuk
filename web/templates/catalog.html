@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BookScope - каталог книг</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/css/catalog.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <nav class="topbar" aria-label="Основная навигация">
+          <a class="brand" href="/">
+            <span class="brand-mark">B</span>
+            <span>BookScope</span>
+          </a>
+          <div class="topbar-links">
+            <a href="/docs">API Docs</a>
+            <a href="#catalog">Каталог</a>
+          </div>
+        </nav>
+
+        <section class="hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">Web-приложение на Python + FastAPI + SQLite</p>
+            <h1>Каталог книг с фильтрами и историей цен</h1>
+            <p class="hero-text">
+              Данные собираются со скрапера, сохраняются в SQLite и доступны через красивый
+              web-интерфейс. Можно искать книги, фильтровать категории, рейтинг, наличие и цену.
+            </p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#catalog">Открыть каталог</a>
+              <a class="button button-ghost" href="/docs">Посмотреть API</a>
+            </div>
+          </div>
+
+          <aside class="hero-card" aria-label="Сводка проекта">
+            <div class="hero-card-top">
+              <span class="status-dot"></span>
+              <span>Данные из SQLite</span>
+            </div>
+            <div class="metric-stack">
+              <div>
+                <span class="metric-value" id="totalBooksMetric">-</span>
+                <span class="metric-label">книг в текущей выборке</span>
+              </div>
+              <div>
+                <span class="metric-value" id="totalRunsMetric">-</span>
+                <span class="metric-label">запусков скрапера</span>
+              </div>
+            </div>
+          </aside>
+        </section>
+      </header>
+
+      <main id="catalog" class="catalog-layout">
+        <section class="panel filters-panel" aria-labelledby="filtersTitle">
+          <div class="section-heading">
+            <p class="eyebrow">Фильтры</p>
+            <h2 id="filtersTitle">Найти нужные книги</h2>
+          </div>
+
+          <form id="catalogFilters" class="filters-form">
+            <label>
+              <span>Поиск по названию</span>
+              <input name="title_query" type="search" placeholder="Например, poetry" />
+            </label>
+
+            <label>
+              <span>Категория</span>
+              <select name="category">
+                <option value="">Все категории</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Запуск скрапера</span>
+              <select name="run_id">
+                <option value="">Последний запуск</option>
+              </select>
+            </label>
+
+            <div class="two-column">
+              <label>
+                <span>Рейтинг от</span>
+                <select name="min_rating">
+                  <option value="">Любой</option>
+                  <option value="1">1+</option>
+                  <option value="2">2+</option>
+                  <option value="3">3+</option>
+                  <option value="4">4+</option>
+                  <option value="5">5</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Цена до, руб.</span>
+                <input name="max_price_rub" type="number" min="0" step="100" placeholder="3000" />
+              </label>
+            </div>
+
+            <div class="two-column">
+              <label>
+                <span>Наличие</span>
+                <select name="in_stock">
+                  <option value="">Любое</option>
+                  <option value="true">В наличии</option>
+                  <option value="false">Нет в наличии</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Сортировка</span>
+                <select name="sort_by">
+                  <option value="scraped_at">По дате</option>
+                  <option value="price_rub">По цене</option>
+                  <option value="rating">По рейтингу</option>
+                  <option value="title">По названию</option>
+                  <option value="category">По категории</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              <span>Порядок</span>
+              <select name="sort_order">
+                <option value="desc">Сначала больше / новее</option>
+                <option value="asc">Сначала меньше / старее</option>
+              </select>
+            </label>
+
+            <div class="filter-actions">
+              <button class="button button-primary" type="submit">Применить</button>
+              <button class="button button-soft" type="button" id="resetFilters">Сбросить</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="content-column">
+          <div class="panel toolbar">
+            <div>
+              <p class="eyebrow">Каталог</p>
+              <h2>Книги из базы</h2>
+            </div>
+            <div class="toolbar-meta">
+              <span id="selectedRunLabel">Последний запуск</span>
+              <span id="resultCountLabel">Загрузка...</span>
+            </div>
+          </div>
+
+          <div id="alertBox" class="alert" hidden></div>
+          <div id="booksGrid" class="books-grid" aria-live="polite"></div>
+          <div id="emptyState" class="empty-state" hidden>
+            <h3>Пока нет данных</h3>
+            <p>
+              Сначала запусти скрапер, чтобы SQLite-база заполнилась книгами. После этого
+              каталог появится здесь.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="historyDialog" class="history-dialog">
+      <button class="dialog-close" type="button" aria-label="Закрыть">×</button>
+      <h2>История книги</h2>
+      <div id="historyContent" class="history-content"></div>
+    </dialog>
+
+    <script src="/static/js/catalog.js" defer></script>
+  </body>
+</html>
