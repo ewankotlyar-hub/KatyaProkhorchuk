@@ -4,6 +4,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
+WEB_DIR = PROJECT_ROOT / "web"
+TEMPLATES_DIR = WEB_DIR / "templates"
+STATIC_DIR = WEB_DIR / "static"
 
 SQLITE_PATH = DATA_DIR / "books.sqlite"
 RAW_CSV_PATH = RAW_DIR / "book_snapshots.csv"

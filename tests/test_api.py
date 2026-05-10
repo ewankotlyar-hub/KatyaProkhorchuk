@@ -144,6 +144,16 @@ async def test_healthcheck_returns_database_overview(tmp_path: Path) -> None:
     assert payload["overview"]["latest_run_id"] == "20260315T100000Z"
 
 
+async def test_root_returns_catalog_page(tmp_path: Path) -> None:
+    app = build_app(tmp_path)
+
+    response = await api_get(app, "/")
+
+    assert response.status_code == 200
+    assert "BookScope" in response.text
+    assert "/static/js/catalog.js" in response.text
+
+
 async def test_books_endpoint_uses_latest_run_by_default(tmp_path: Path) -> None:
     app = build_app(tmp_path)
 

@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
-from books_monitor.config import SQLITE_PATH
+from books_monitor.config import SQLITE_PATH, STATIC_DIR
 from books_monitor.query_service import (
     MAX_PAGE_SIZE,
     BooksQuery,
@@ -16,6 +16,7 @@ from books_monitor.query_service import (
     ResourceNotFoundError,
     RunsQuery,
 )
+from books_monitor.web import WebRouterFactory
 
 from .schemas import (
     BookHistoryResponse,
@@ -42,10 +43,8 @@ def create_app(db_path: Path = SQLITE_PATH) -> FastAPI:
         ),
     )
     service = BooksQueryService(db_path=db_path)
-
-    @app.get("/", include_in_schema=False)
-    async def root() -> RedirectResponse:
-        return RedirectResponse(url="/docs")
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.include_router(WebRouterFactory().create_router())
 
     @app.get("/api/v1/health", response_model=HealthResponse, tags=["system"])
     async def healthcheck() -> HealthResponse:
